@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>英语单词记忆</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px 20px;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        /* 上传界面 */
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 50px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            background: #f0f3ff;
+            border-color: #764ba2;
+        }
+
+        .upload-icon {
+            font-size: 50px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 13px;
+            color: #999;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 15px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: #f0f3ff;
+            color: #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #e8edff;
+        }
+
+        /* 选项卡选择 */
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .tabs-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            min-width: 100px;
+            padding: 14px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .tab:hover {
+            border-color: #667eea;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .tab-count {
+            display: block;
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        /* 模式选择 */
+        .mode-options {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .mode-option {
+            flex: 1;
+            padding: 30px 20px;
+            border: 3px solid #e0e0e0;
+            border-radius: 15px;
+            background: white;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mode-option:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .mode-option.active {
+            border-color: #667eea;
+            background: #f0f3ff;
+        }
+
+        .mode-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        .mode-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* 数量选择 */
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .input-hint {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 10px;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* 背诵界面 */
+        .progress {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin: 0 15px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            transition: width 0.5s;
+        }
+
+        .card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 40px 20px;
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            min-height: 260px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .card-word {
+            font-size: 32px;
+            font-weight: 700;
+            line-height: 1.3;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+        }
+
+        .card-answer {
+            font-size: 22px;
+            font-weight: 500;
+            line-height: 1.4;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            visibility: hidden;
+            opacity: 0;
+        }
+
+        .card-answer.show {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn-show {
+            background: white;
+            color: #667eea;
+        }
+
+        .btn-show:hover {
+            background: #f8f9ff;
+        }
+
+        .btn-next {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-next:hover {
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-right {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-right:hover {
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-wrong {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-wrong:hover {
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        /* 完成界面 */
+        .complete-icon {
+            font-size: 80px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .complete-title {
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .complete-text {
+            font-size: 16px;
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .stats {
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            font-size: 15px;
+        }
+
+        .stat-label {
+            color: #666;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        /* 小屏幕适配 */
+        @media (max-width: 480px) {
+            .card-word {
+                font-size: 26px;
+            }
+            .card-answer {
+                font-size: 18px;
+            }
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 英语单词记忆</h1>
+            <p>高效记忆，快乐学习</p>
+        </div>
+        <div class="content">
+            <!-- 上传界面 -->
+            <div id="screen-upload" class="screen active">
+                <div class="upload-area" onclick="document.getElementById('file-input').click()">
+                    <div class="upload-icon">📂</div>
+                    <div class="upload-text">点击上传 Excel 词库</div>
+                    <div class="upload-hint">支持 .xlsx 格式</div>
+                </div>
+                <input type="file" id="file-input" accept=".xlsx,.xls">
+            </div>
+
+            <!-- 词库选择界面 -->
+            <div id="screen-category" class="screen">
+                <div class="section-title">选择词库范围</div>
+                <div id="tabs-container" class="tabs-container"></div>
+                <button id="btn-category-next" class="btn btn-primary" disabled>下一步</button>
+                <button class="btn btn-secondary" onclick="goToScreen('upload')">重新上传</button>
+            </div>
+
+            <!-- 模式选择界面 -->
+            <div id="screen-mode" class="screen">
+                <div class="section-title">选择背诵模式</div>
+                <div class="mode-options">
+                    <div class="mode-option" data-mode="english" onclick="selectMode('english')">
+                        <div class="mode-icon">🇬🇧</div>
+                        <div class="mode-text">English</div>
+                    </div>
+                    <div class="mode-option" data-mode="chinese" onclick="selectMode('chinese')">
+                        <div class="mode-icon">🇨🇳</div>
+                        <div class="mode-text">中文</div>
+                    </div>
+                </div>
+                <button id="btn-mode-next" class="btn btn-primary" disabled>下一步</button>
+                <button class="btn btn-secondary" onclick="goToScreen('category')">返回</button>
+            </div>
+
+            <!-- 数量选择界面 -->
+            <div id="screen-count" class="screen">
+                <div class="section-title">设置背诵数量</div>
+                <div class="input-group">
+                    <label class="input-label">本次背诵单词数</label>
+                    <div class="input-hint" id="count-hint">本范围共 0 个单词</div>
+                    <input type="number" id="count-input" min="1" value="10">
+                </div>
+                <button id="btn-count-next" class="btn btn-primary" onclick="startRecite()">开始背诵</button>
+                <button class="btn btn-secondary" onclick="goToScreen('mode')">返回</button>
+            </div>
+
+            <!-- 背诵界面 -->
+            <div id="screen-recite" class="screen">
+                <div class="progress">
+                    <span id="current-num">1</span>
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <span id="total-num">10</span>
+                </div>
+                <div class="card">
+                    <div id="card-word" class="card-word"></div>
+                    <div id="card-answer" class="card-answer"></div>
+                </div>
+                <div class="action-buttons">
+                    <button id="btn-show" class="btn btn-show" onclick="showAnswer()">显示答案</button>
+                </div>
+                <div class="action-buttons" id="answer-buttons" style="display: none;">
+                    <button class="btn btn-wrong" onclick="markWrong()">❌ 错</button>
+                    <button class="btn btn-right" onclick="markRight()">✅ 对</button>
+                </div>
+            </div>
+
+            <!-- 错题确认界面 -->
+            <div id="screen-review" class="screen">
+                <div class="complete-icon">📝</div>
+                <div class="complete-title">本轮背诵完成！</div>
+                <div class="complete-text" id="review-text">你有 0 个错题，是否再背一遍？</div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-label">正确</span>
+                        <span id="stat-right" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">错误</span>
+                        <span id="stat-wrong" class="stat-value">0</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="reviewWrong()">是，再背一遍错题</button>
+                <button class="btn btn-secondary" onclick="goToScreen('category')">否，返回选择</button>
+            </div>
+
+            <!-- 完成界面 -->
+            <div id="screen-complete" class="screen">
+                <div class="complete-icon">🎉</div>
+                <div class="complete-title">太棒了！</div>
+                <div class="complete-text">你已经完成了本次背诵</div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-label">背诵数量</span>
+                        <span id="stat-total" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">词库范围</span>
+                        <span id="stat-category" class="stat-value">-</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="goToScreen('category')">再来一组</button>
+                <button class="btn btn-secondary" onclick="goToScreen('upload')">重新开始</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let wordData = [];
+        let categories = [];
+        let selectedCategory = null;
+        let selectedMode = null;
+        let currentWordList = [];
+        let currentIndex = 0;
+        let wrongWords = [];
+        let rightCount = 0;
+        let isReviewMode = false;
+
+        // 文件上传处理
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    wordData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                    // 移除表头（如果第一行是表头）
+                    if (wordData.length > 0) {
+                        // 提取分类（第一列）
+                        categories = [];
+                        const categorySet = new Set();
+                        for (let i = 1; i < wordData.length; i++) {
+                            const row = wordData[i];
+                            if (row[0]) {
+                                categorySet.add(row[0]);
+                            }
+                        }
+                        categories = Array.from(categorySet);
+
+                        if (categories.length > 0) {
+                            renderCategories();
+                            goToScreen('category');
+                        } else {
+                            alert('未找到有效的词库数据！');
+                        }
+                    }
+                } catch (error) {
+                    console.error(error);
+                    alert('读取文件失败，请检查文件格式！');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // 计算分类单词数量
+        function getCategoryCount(category) {
+            let count = 0;
+            if (category === 'all') {
+                count = wordData.length - 1;
+            } else {
+                for (let i = 1; i < wordData.length; i++) {
+                    if (wordData[i][0] === category) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        // 渲染分类选项卡
+        function renderCategories() {
+            const container = document.getElementById('tabs-container');
+            container.innerHTML = '';
+
+            // 添加"全部"选项
+            const allCount = getCategoryCount('all');
+            const allTab = document.createElement('div');
+            allTab.className = 'tab';
+            allTab.innerHTML = `全部<span class="tab-count">${allCount}个</span>`;
+            allTab.onclick = function() {
+                selectCategory('all');
+            };
+            container.appendChild(allTab);
+
+            // 添加各个分类
+            categories.forEach(cat => {
+                const count = getCategoryCount(cat);
+                const tab = document.createElement('div');
+                tab.className = 'tab';
+                tab.innerHTML = `${cat}<span class="tab-count">${count}个</span>`;
+                tab.onclick = function() {
+                    selectCategory(cat);
+                };
+                container.appendChild(tab);
+            });
+        }
+
+        // 选择分类
+        function selectCategory(category) {
+            selectedCategory = category;
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (category === 'all' && tab.innerHTML.includes('全部')) {
+                    tab.classList.add('active');
+                } else if (tab.innerHTML.includes(category) && !tab.innerHTML.includes('全部')) {
+                    tab.classList.add('active');
+                }
+            });
+            document.getElementById('btn-category-next').disabled = false;
+        }
+
+        // 选择模式
+        function selectMode(mode) {
+            selectedMode = mode;
+            document.querySelectorAll('.mode-option').forEach(opt => {
+                opt.classList.remove('active');
+                if (opt.dataset.mode === mode) {
+                    opt.classList.add('active');
+                }
+            });
+            document.getElementById('btn-mode-next').disabled = false;
+        }
+
+        // 准备数量选择
+        function prepareCountScreen() {
+            let count = 0;
+            if (selectedCategory === 'all') {
+                count = wordData.length - 1;
+            } else {
+                for (let i = 1; i < wordData.length; i++) {
+                    if (wordData[i][0] === selectedCategory) {
+                        count++;
+                    }
+                }
+            }
+            document.getElementById('count-hint').textContent = `本范围共 ${count} 个单词`;
+            document.getElementById('count-input').value = Math.min(10, count);
+            document.getElementById('count-input').max = count;
+        }
+
+        // 开始背诵
+        function startRecite() {
+            const count = parseInt(document.getElementById('count-input').value);
+            let words = [];
+
+            // 筛选单词
+            for (let i = 1; i < wordData.length; i++) {
+                const row = wordData[i];
+                if (selectedCategory === 'all' || row[0] === selectedCategory) {
+                    if (row[1] && row[2]) {
+                        words.push({ english: row[1], chinese: row[2] });
+                    }
+                }
+            }
+
+            // 随机打乱
+            shuffleArray(words);
+
+            // 选择单词
+            if (count < words.length) {
+                currentWordList = words.slice(0, count);
+            } else {
+                currentWordList = words;
+            }
+
+            currentIndex = 0;
+            wrongWords = [];
+            rightCount = 0;
+            isReviewMode = false;
+            renderWord();
+            goToScreen('recite');
+        }
+
+        // 根据文本长度动态缩小字号，避免超长内容显示不全
+        function fitText(element, baseSize, minSize) {
+            element.style.fontSize = baseSize + 'px';
+            element.style.visibility = 'visible';
+            // 先重置高度以便测量
+            const card = element.closest('.card');
+            if (!card) return;
+            // 允许一定次数的缩字
+            let attempts = 0;
+            const maxAttempts = 10;
+            while (attempts < maxAttempts) {
+                const overflow = element.scrollHeight > element.clientHeight + 2 ||
+                    element.scrollWidth > element.clientWidth + 2;
+                const cardOverflow = card.scrollHeight > card.clientHeight + 4;
+                if (!overflow && !cardOverflow) break;
+                const current = parseFloat(element.style.fontSize);
+                const next = current - 2;
+                if (next < minSize) break;
+                element.style.fontSize = next + 'px';
+                attempts++;
+            }
+        }
+
+        // 渲染当前单词
+        function renderWord() {
+            const word = currentWordList[currentIndex];
+            const progress = ((currentIndex) / currentWordList.length) * 100;
+
+            document.getElementById('current-num').textContent = currentIndex + 1;
+            document.getElementById('total-num').textContent = currentWordList.length;
+            document.getElementById('progress-fill').style.width = progress + '%';
+
+            const answerEl = document.getElementById('card-answer');
+            const wordEl = document.getElementById('card-word');
+
+            // 关键修复：先隐藏答案（含 visibility:hidden），清空文本，再写新内容
+            answerEl.classList.remove('show');
+            answerEl.textContent = '';
+
+            if (selectedMode === 'english') {
+                wordEl.textContent = word.english;
+                // 先把答案写进 answerEl 的数据属性，由 showAnswer() 再填充，彻底避免切换瞬间显示
+                answerEl.dataset.pending = word.chinese;
+            } else {
+                wordEl.textContent = word.chinese;
+                answerEl.dataset.pending = word.english;
+            }
+
+            // 动态调整单词字号，避免长句被截断
+            const isMobile = window.innerWidth <= 480;
+            fitText(wordEl, isMobile ? 26 : 32, 16);
+
+            document.getElementById('btn-show').style.display = 'block';
+            document.getElementById('answer-buttons').style.display = 'none';
+        }
+
+        // 显示答案
+        function showAnswer() {
+            const answerEl = document.getElementById('card-answer');
+            const pending = answerEl.dataset.pending;
+            if (pending) {
+                answerEl.textContent = pending;
+                answerEl.dataset.pending = '';
+                // 对答案也做一次自适应字号
+                const isMobile = window.innerWidth <= 480;
+                fitText(answerEl, isMobile ? 18 : 22, 14);
+            }
+            answerEl.classList.add('show');
+            document.getElementById('btn-show').style.display = 'none';
+            document.getElementById('answer-buttons').style.display = 'flex';
+        }
+
+        // 标记正确
+        function markRight() {
+            rightCount++;
+            nextWordOrReview();
+        }
+
+        // 标记错误
+        function markWrong() {
+            wrongWords.push(currentWordList[currentIndex]);
+            nextWordOrReview();
+        }
+
+        // 下一个单词或完成
+        function nextWordOrReview() {
+            currentIndex++;
+            if (currentIndex < currentWordList.length) {
+                renderWord();
+            } else {
+                showReview();
+            }
+        }
+
+        // 显示复习界面
+        function showReview() {
+            document.getElementById('stat-right').textContent = rightCount;
+            document.getElementById('stat-wrong').textContent = wrongWords.length;
+            document.getElementById('review-text').textContent = `你有 ${wrongWords.length} 个错题，是否再背一遍？`;
+            goToScreen('review');
+        }
+
+        // 复习错题
+        function reviewWrong() {
+            if (wrongWords.length === 0) {
+                completeRecite();
+                return;
+            }
+            currentWordList = [...wrongWords];
+            shuffleArray(currentWordList);
+            currentIndex = 0;
+            wrongWords = [];
+            rightCount = 0;
+            isReviewMode = true;
+            renderWord();
+            goToScreen('recite');
+        }
+
+        // 完成背诵
+        function completeRecite() {
+            document.getElementById('stat-total').textContent = currentWordList.length;
+            document.getElementById('stat-category').textContent = selectedCategory === 'all' ? '全部' : selectedCategory;
+            goToScreen('complete');
+        }
+
+        // 切换界面
+        function goToScreen(screen) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-' + screen).classList.add('active');
+
+            if (screen === 'count') {
+                prepareCountScreen();
+            }
+        }
+
+        // 下一步按钮事件
+        document.getElementById('btn-category-next').addEventListener('click', function() {
+            goToScreen('mode');
+        });
+
+        document.getElementById('btn-mode-next').addEventListener('click', function() {
+            goToScreen('count');
+        });
+
+        // 窗口尺寸变化时，对当前显示的内容重新适配字号（避免横竖屏切换时显示不全）
+        window.addEventListener('resize', function() {
+            const wordEl = document.getElementById('card-word');
+            const answerEl = document.getElementById('card-answer');
+            if (document.getElementById('screen-recite').classList.contains('active') && wordEl.textContent) {
+                const isMobile = window.innerWidth <= 480;
+                fitText(wordEl, isMobile ? 26 : 32, 16);
+                if (answerEl.classList.contains('show') && answerEl.textContent) {
+                    fitText(answerEl, isMobile ? 18 : 22, 14);
+                }
+            }
+        });
+
+        // 洗牌算法
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+    </script>
+</body>
+</html>

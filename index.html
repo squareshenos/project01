@@ -45,6 +45,34 @@
       background: transparent;
       cursor: pointer;
     }
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+      margin-top: 8px;
+    }
+    .page-button {
+      min-width: 140px;
+      padding: 12px 18px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.18);
+      transition: background 0.2s ease, transform 0.2s ease;
+      text-decoration: none;
+      text-align: center;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .page-button:hover {
+      background: rgba(255, 255, 255, 0.28);
+      transform: translateY(-2px);
+    }
     .note {
       margin-top: 18px;
       font-size: 0.9rem;
@@ -60,6 +88,11 @@
         选择背景色
         <input id="bgColor" type="color" value="#007bff" />
       </label>
+      <div class="button-row">
+        <a class="page-button" href="quotation.html" target="_blank" rel="noopener">打开收费计算器</a>
+        <a class="page-button" href="recite.html" target="_blank" rel="noopener">打开单词记忆</a>
+        <a class="page-button" href="remap.html" target="_blank" rel="noopener">打开互动地图</a>
+      </div>
       <div class="note">当前背景色透明度固定为 50%</div>
     </div>
   </div>

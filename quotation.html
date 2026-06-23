@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>收费计算器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .input-group input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-group input::placeholder {
+            color: #999;
+        }
+
+        .input-group .unit {
+            position: relative;
+        }
+
+        .input-group .unit::after {
+            content: attr(data-unit);
+            position: absolute;
+            right: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        .btn-calculate {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+
+        .btn-calculate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-calculate:active {
+            transform: translateY(0);
+        }
+
+        .result-section {
+            background: #f8f9fa;
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .result-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .final-amount {
+            font-size: 36px;
+            font-weight: 700;
+            color: #667eea;
+            text-align: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 15px;
+        }
+
+        .calculation-process {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            color: #333;
+            white-space: pre-wrap;
+            word-break: break-all;
+            border: 1px solid #e0e0e0;
+        }
+
+        .copy-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-copy {
+            flex: 1;
+            padding: 12px;
+            background: #f0f0f0;
+            color: #555;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-copy:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-copy.copied {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .btn-copy svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .formula-info {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 0 10px 10px 0;
+            font-size: 13px;
+            color: #5d4037;
+        }
+
+        .formula-info ul {
+            margin-top: 10px;
+            padding-left: 20px;
+        }
+
+        .formula-info li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 收费计算器</h1>
+        
+        <div class="formula-info">
+            <strong>计费规则（差额累进制）：</strong>
+            <ul>
+                <li>100万元以下（含）：0.50%</li>
+                <li>100-1000万元（含）：0.25%</li>
+                <li>1000-2000万元（含）：0.15%</li>
+                <li>2000-5000万元（含）：0.08%</li>
+                <li>5000-8000万元（含）：0.04%</li>
+                <li>8000-10000万元（含）：0.02%</li>
+                <li>10000万元以上：0.01%</li>
+            </ul>
+        </div>
+
+        <div class="input-group">
+            <label for="valuation">评估值</label>
+            <div class="unit" data-unit="万元">
+                <input type="number" id="valuation" placeholder="请输入评估值（万元）" min="0" step="0.01">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label for="discount">折扣率</label>
+            <div class="unit" data-unit="%">
+                <input type="number" id="discount" placeholder="不填默认为100%" min="0" max="100" step="0.01">
+            </div>
+        </div>
+
+        <button class="btn-calculate" onclick="calculate()">计算收费</button>
+
+        <div id="result" style="display: none;">
+            <div class="result-section">
+                <h3>最终收费</h3>
+                <div class="final-amount" id="finalAmount"></div>
+                
+                <h3>计算过程</h3>
+                <div class="calculation-process" id="calculationProcess"></div>
+            </div>
+
+            <h3 style="color: #333; margin-bottom: 15px; font-size: 16px; font-weight: 600;">复制选项</h3>
+            <div class="copy-buttons">
+                <button class="btn-copy" id="copyEquationBtn" onclick="copyEquation()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    复制连等式
+                </button>
+                <button class="btn-copy" id="copyProcessBtn" onclick="copyProcess()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    复制分步式
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let calculationData = {
+            equation: '',
+            process: ''
+        };
+
+        function calculate() {
+            const valuation = parseFloat(document.getElementById('valuation').value);
+            const discountInput = document.getElementById('discount').value;
+            const discount = discountInput ? parseFloat(discountInput) / 100 : 1;
+
+            if (isNaN(valuation) || valuation < 0) {
+                alert('请输入有效的评估值');
+                return;
+            }
+
+            const tiers = [
+                { limit: 100, rate: 0.005 },
+                { limit: 1000, rate: 0.0025 },
+                { limit: 2000, rate: 0.0015 },
+                { limit: 5000, rate: 0.0008 },
+                { limit: 8000, rate: 0.0004 },
+                { limit: 10000, rate: 0.0002 },
+                { limit: Infinity, rate: 0.0001 }
+            ];
+
+            let steps = [];
+            let equationParts = [];
+            let totalFee = 0;
+            let remaining = valuation;
+
+            for (let i = 0; i < tiers.length; i++) {
+                const tier = tiers[i];
+                const prevLimit = i === 0 ? 0 : tiers[i - 1].limit;
+                
+                if (remaining <= 0) break;
+
+                let amount;
+                if (valuation > tier.limit) {
+                    amount = tier.limit - prevLimit;
+                } else {
+                    amount = remaining;
+                }
+
+                if (amount > 0) {
+                    const fee = amount * tier.rate * 10000;
+                    totalFee += fee;
+                    
+                    const amountStr = amount.toString();
+                    const ratePercent = (tier.rate * 100).toFixed(2).replace(/\.?0+$/, '');
+                    const feeStr = fee.toFixed(0);
+                    
+                    steps.push(`${amountStr}万元×${ratePercent}%=${feeStr}元`);
+                    equationParts.push(`${amountStr}×${ratePercent}%`);
+                }
+                
+                remaining = Math.max(0, remaining - (tier.limit - prevLimit));
+            }
+
+            const finalAmount = totalFee * discount;
+
+            calculationData.process = steps.join('\n') + 
+                `\n────────────────────\n` +
+                `合计：${totalFee.toFixed(0)}元\n` +
+                `折扣率：${(discount * 100).toFixed(2)}%\n` +
+                `────────────────────\n` +
+                `最终收费：${finalAmount.toFixed(0)}元`;
+
+            calculationData.equation = '(' + equationParts.join('+') + ')×' + (discount * 100).toFixed(2).replace(/\.?0+$/, '') + '%=' + finalAmount.toFixed(0);
+
+            document.getElementById('finalAmount').textContent = `${finalAmount.toFixed(0)} 元`;
+            document.getElementById('calculationProcess').textContent = calculationData.process;
+            document.getElementById('result').style.display = 'block';
+
+            resetCopyButtons();
+        }
+
+        function resetCopyButtons() {
+            const equationBtn = document.getElementById('copyEquationBtn');
+            const processBtn = document.getElementById('copyProcessBtn');
+            
+            equationBtn.classList.remove('copied');
+            equationBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> 复制连等式`;
+            
+            processBtn.classList.remove('copied');
+            processBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> 复制分步式`;
+        }
+
+        function copyEquation() {
+            navigator.clipboard.writeText(calculationData.equation).then(() => {
+                const btn = document.getElementById('copyEquationBtn');
+                btn.classList.add('copied');
+                btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg> 已复制！`;
+                
+                setTimeout(resetCopyButtons, 2000);
+            }).catch(() => {
+                alert('复制失败，请手动复制');
+            });
+        }
+
+        function copyProcess() {
+            navigator.clipboard.writeText(calculationData.process).then(() => {
+                const btn = document.getElementById('copyProcessBtn');
+                btn.classList.add('copied');
+                btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg> 已复制！`;
+                
+                setTimeout(resetCopyButtons, 2000);
+            }).catch(() => {
+                alert('复制失败，请手动复制');
+            });
+        }
+    </script>
+</body>
+</html>

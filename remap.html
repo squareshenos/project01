@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>房地产价格互动地图</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f5f5f5; }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  #toolbar {
+    background: #fff; border-bottom: 1px solid #e0e0e0;
+    padding: 8px 14px; display: flex; align-items: center;
+    gap: 10px; flex-wrap: wrap; z-index: 1000;
+  }
+  #toolbar h1 { font-size: 14px; font-weight: 500; color: #333; white-space: nowrap; }
+
+  .upload-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; background: #1a73e8; color: #fff;
+    border: none; border-radius: 5px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .upload-btn:hover { background: #1558b0; }
+  .clear-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; background: #fff; color: #555;
+    border: 1px solid #ccc; border-radius: 5px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .clear-btn:hover { background: #f5f5f5; }
+  .toggle-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; background: #e8f5e9; color: #2e7d32;
+    border: 1px solid #a5d6a7; border-radius: 5px; font-size: 13px; cursor: pointer; font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+  }
+  .toggle-btn:hover { background: #c8e6c9; }
+  .toggle-btn.off { background: #f5f5f5; color: #999; border-color: #ddd; }
+  .toggle-btn.off:hover { background: #eeeeee; }
+  #file-input { display: none; }
+
+  .key-group {
+    display: flex; align-items: center; gap: 6px;
+    border: 1px solid #e0e0e0; border-radius: 5px;
+    padding: 3px 8px; background: #fafafa; flex: 1; min-width: 260px; max-width: 400px;
+  }
+  .key-group label { font-size: 12px; color: #666; white-space: nowrap; }
+  .key-group input {
+    flex: 1; border: none; background: transparent; font-size: 12px;
+    outline: none; font-family: monospace; color: #333;
+  }
+  .key-save-btn {
+    padding: 2px 8px; font-size: 12px; background: #e8f0fe; color: #1a73e8;
+    border: 1px solid #c5d8fd; border-radius: 4px; cursor: pointer; font-family: inherit;
+  }
+  .key-save-btn:hover { background: #d2e3fc; }
+  .key-help { font-size: 11px; color: #1a73e8; cursor: pointer; white-space: nowrap; text-decoration: underline; }
+
+  #status-bar { font-size: 12px; color: #666; display: flex; align-items: center; gap: 8px; }
+  #progress-bar {
+    display: none; width: 120px; height: 5px; background: #e0e0e0; border-radius: 3px; overflow: hidden;
+  }
+  #progress-fill { height: 100%; background: #1a73e8; width: 0%; transition: width 0.2s; border-radius: 3px; }
+  .status-ok { color: #2e7d32; }
+  .status-err { color: #c62828; }
+  .status-loading { color: #1565c0; }
+
+  #main { display: flex; flex: 1; overflow: hidden; }
+  #map { flex: 1; }
+
+  #panel {
+    width: 280px; background: #fff; border-left: 1px solid #e0e0e0;
+    overflow-y: auto; display: flex; flex-direction: column;
+  }
+  #panel-header {
+    padding: 10px 12px; font-size: 13px; font-weight: 500; color: #333;
+    border-bottom: 1px solid #e8e8e8; background: #fafafa; position: sticky; top: 0;
+  }
+  #panel-body { padding: 0; }
+  .prop-item {
+    padding: 9px 12px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background 0.1s;
+  }
+  .prop-item:hover { background: #f0f4ff; }
+  .prop-item.is-subject { border-left: 3px solid #e53935; }
+  .prop-item.is-case { border-left: 3px solid #f9a825; }
+  .prop-label { font-size: 12px; font-weight: 500; margin-bottom: 2px; display: flex; align-items: center; gap: 5px; }
+  .tag-subject { background: #fdecea; color: #c62828; border-radius: 3px; padding: 1px 5px; font-size: 11px; }
+  .tag-case { background: #fff8e1; color: #827717; border-radius: 3px; padding: 1px 5px; font-size: 11px; }
+  .prop-address { font-size: 12px; color: #555; line-height: 1.5; margin-bottom: 3px; }
+  .prop-dist { font-size: 11px; color: #888; }
+  #hint { padding: 18px 12px; text-align: center; color: #aaa; font-size: 12px; line-height: 1.9; }
+
+  /* Key引导模态框 */
+  #key-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    z-index: 9999; align-items: center; justify-content: center;
+  }
+  #key-modal.show { display: flex; }
+  .modal-card {
+    background: #fff; border-radius: 10px; padding: 24px 28px;
+    max-width: 540px; width: 92%; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+  .modal-card h3 { font-size: 15px; font-weight: 500; margin-bottom: 12px; color: #333; }
+  .modal-card p { font-size: 13px; color: #555; line-height: 1.8; margin-bottom: 10px; }
+  .modal-card ol { font-size: 13px; color: #444; line-height: 2.1; padding-left: 20px; margin-bottom: 14px; }
+  .modal-card a { color: #1a73e8; }
+  .modal-tip { background: #fff8e1; border-left: 3px solid #f9a825; padding: 8px 12px; border-radius: 4px; font-size: 12px; color: #555; margin-bottom: 14px; }
+  .modal-input-row { display: flex; gap: 8px; margin-top: 10px; }
+  .modal-input-row input {
+    flex: 1; border: 1px solid #ccc; border-radius: 5px; padding: 6px 10px;
+    font-size: 13px; font-family: monospace; outline: none;
+  }
+  .modal-input-row input:focus { border-color: #1a73e8; }
+  .modal-confirm-btn {
+    padding: 6px 16px; background: #1a73e8; color: #fff;
+    border: none; border-radius: 5px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .modal-confirm-btn:hover { background: #1558b0; }
+  .modal-close { float: right; cursor: pointer; color: #999; font-size: 18px; line-height: 1; }
+
+  /* popup */
+  .popup-title { font-size: 13px; font-weight: 500; margin-bottom: 5px; color: #333; }
+  .popup-row { font-size: 12px; color: #555; line-height: 1.9; }
+  .popup-dist { margin-top: 5px; font-size: 12px; color: #1565c0; font-weight: 500; }
+
+  /* 图例 */
+  .map-legend {
+    background: white; padding: 7px 11px; border-radius: 6px;
+    font-size: 12px; line-height: 1.9; border: 0.5px solid rgba(0,0,0,0.15);
+  }
+  .map-legend b { display: block; margin-bottom: 1px; font-size: 12px; color: #444; }
+  .legend-row { display: flex; align-items: center; gap: 5px; color: #555; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <h1>&#x1F3E0; 房地产价格互动地图</h1>
+    <button class="upload-btn" onclick="handleUploadClick()">&#x1F4C2; 上传 xlsx</button>
+    <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleFile(event)">
+    <button class="clear-btn" onclick="clearAll()">&#x1F5D1; 清除</button>
+    <button class="toggle-btn" id="dist-toggle-btn" onclick="toggleDistLabels()">&#x1F4CF; 显示距离</button>
+    <div class="key-group">
+      <label>高德Key：</label>
+      <input type="text" id="amap-key-input" placeholder="粘贴高德JS API Key" spellcheck="false">
+      <button class="key-save-btn" onclick="saveKey()">保存</button>
+    </div>
+    <span class="key-help" onclick="showKeyHelp()">如何获取Key？</span>
+    <button class="clear-btn" onclick="debugGeocoder()" title="诊断SDK状态">&#x1F50D; 诊断</button>
+    <div id="status-bar">
+      <div id="progress-bar"><div id="progress-fill"></div></div>
+      <span id="status-text">请先填写高德Key，再上传xlsx</span>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="map"></div>
+    <div id="panel">
+      <div id="panel-header">&#x1F4CB; 标注列表</div>
+      <div id="panel-body">
+        <div id="hint">上传 xlsx 后<br>地址将自动解析并显示</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Key引导模态框 -->
+<div id="key-modal">
+  <div class="modal-card">
+    <span class="modal-close" onclick="hideKeyHelp()">&#x2715;</span>
+    <h3>&#x1F511; 获取高德地图 JS API Key</h3>
+    <p>地理编码功能需要高德地图 <b>Web 端（JS API）</b> Key（完全免费）：</p>
+    <ol>
+      <li>访问 <a href="https://console.amap.com/dev/key/app" target="_blank">高德开放平台控制台</a></li>
+      <li>登录后点击「创建新应用」，名称随意填写</li>
+      <li>点击「添加 Key」→ 服务平台选 <b>「Web 端（JS API）」</b></li>
+      <li>创建完成后复制 Key 粘贴到上方输入框</li>
+    </ol>
+    <div class="modal-tip">
+      &#x26A0; 注意：必须选「<b>Web 端（JS API）</b>」类型，选「Web 服务」会导致解析失败。
+    </div>
+    <div class="modal-input-row">
+      <input type="text" id="modal-key-input" placeholder="粘贴 Key 到此处" spellcheck="false">
+      <button class="modal-confirm-btn" onclick="saveKeyFromModal()">确认保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 高德JS SDK动态加载后初始化地图标注 -->
+<script>
+// ===================== Key 管理 =====================
+// 若本地存储的Key是旧的错误Key，自动替换为新Key
+(function() {
+  const storedKey = localStorage.getItem('amap_key');
+  const newKey = 'e450dca840d5f77261351cfcc831bd9c';
+  if (!storedKey || storedKey === 'c1ec421f8f7cc00147ede038b7ca78c5') {
+    localStorage.setItem('amap_key', newKey);
+  }
+})();
+
+let AMAP_KEY = localStorage.getItem('amap_key') || 'e450dca840d5f77261351cfcc831bd9c';
+let amapLoaded = false;
+let amapGeocoder = null;
+
+// ===================== 距离标注显示状态 =====================
+let showDistLabels = true;
+
+// 调试诊断函数
+function debugGeocoder() {
+  console.log('=== 诊断信息 ===');
+  console.log('AMAP_KEY:', AMAP_KEY ? '已设置' : '未设置');
+  console.log('window.AMap:', typeof window.AMap);
+  console.log('amapGeocoder:', amapGeocoder);
+  console.log('amapLoaded:', amapLoaded);
+  alert(`诊断：\nKey: ${AMAP_KEY ? '已设置' : '未设置'}\nAMap: ${typeof window.AMap}\nGeocoder: ${amapGeocoder ? '已初始化' : '未初始化'}\namapLoaded: ${amapLoaded}`);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (AMAP_KEY) {
+    document.getElementById('amap-key-input').value = AMAP_KEY;
+    setStatus('Key已加载，正在初始化SDK...', 'loading');
+    loadAmapSdk(AMAP_KEY);
+  }
+});
+
+function saveKey() {
+  const val = document.getElementById('amap-key-input').value.trim();
+  if (!val) { setStatus('请输入Key', 'err'); return; }
+  AMAP_KEY = val;
+  localStorage.setItem('amap_key', val);
+  setStatus('Key已保存，正在初始化...', 'loading');
+  // 强制重新加载SDK
+  amapLoaded = false;
+  if (window.AMap) { delete window.AMap; }
+  const oldScript = document.getElementById('amap-sdk-script');
+  if (oldScript) oldScript.remove();
+  geocodeCache = {}; // 清除旧缓存
+  loadAmapSdk(val);
+}
+
+function saveKeyFromModal() {
+  const val = document.getElementById('modal-key-input').value.trim();
+  if (!val) return;
+  document.getElementById('amap-key-input').value = val;
+  hideKeyHelp();
+  saveKey();
+}
+
+function showKeyHelp() { document.getElementById('key-modal').classList.add('show'); }
+function hideKeyHelp() { document.getElementById('key-modal').classList.remove('show'); }
+
+// 动态加载高德JS SDK
+function loadAmapSdk(key) {
+  // 如已加载，直接重建Geocoder
+  if (window.AMap) {
+    console.log('AMap已存在，直接初始化Geocoder');
+    initGeocoder();
+    return;
+  }
+  // 移除旧脚本
+  const old = document.getElementById('amap-sdk-script');
+  if (old) old.remove();
+
+  setStatus('正在加载高德SDK...', 'loading');
+  
+  const script = document.createElement('script');
+  script.id = 'amap-sdk-script';
+  script.src = `https://webapi.amap.com/maps?v=2.0&key=${key}&plugin=AMap.Geocoder`;
+  
+  script.onload = () => {
+    console.log('SDK脚本加载成功');
+    console.log('window.AMap:', typeof window.AMap);
+    // 高德SDK加载后不一定立即可用，需要等待
+    setTimeout(() => {
+      if (window.AMap) {
+        console.log('AMap对象可用，初始化Geocoder');
+        initGeocoder();
+      } else {
+        console.error('AMap对象不可用');
+        setStatus('SDK加载失败，AMap对象未定义', 'err');
+      }
+    }, 1000);
+  };
+  script.onerror = (e) => {
+    console.error('SDK脚本加载失败:', e);
+    setStatus('SDK加载失败，请检查网络或Key', 'err');
+  };
+  
+  // 超时检测
+  setTimeout(() => {
+    if (!amapLoaded) {
+      console.warn('SDK加载超时，尝试强制初始化');
+      if (window.AMap) initGeocoder();
+    }
+  }, 8000);
+  
+  document.head.appendChild(script);
+}
+
+function initGeocoder() {
+  try {
+    if (typeof AMap === 'undefined') {
+      console.error('AMap未定义');
+      setStatus('AMap未定义，加载失败', 'err');
+      return;
+    }
+    amapGeocoder = new AMap.Geocoder({ 
+      city: '全国', 
+      radius: 50000,
+      extensions: 'base'
+    });
+    amapLoaded = true;
+    console.log('Geocoder初始化成功');
+    setStatus('✅ Key已就绪，可上传xlsx文件', 'ok');
+  } catch(e) {
+    console.error('Geocoder初始化失败:', e);
+    setStatus('Geocoder初始化失败：' + e.message, 'err');
+  }
+}
+
+function handleUploadClick() {
+  if (!AMAP_KEY) { showKeyHelp(); return; }
+  if (!amapLoaded) {
+    setStatus('正在初始化高德SDK，请稍候...', 'loading');
+    loadAmapSdk(AMAP_KEY);
+    setTimeout(() => {
+      if (amapLoaded) document.getElementById('file-input').click();
+      else setStatus('SDK未就绪，请稍后重试', 'err');
+    }, 1500);
+    return;
+  }
+  document.getElementById('file-input').click();
+}
+
+// ===================== 地理编码（高德JS API） =====================
+let geocodeCache = {};
+
+function geocodeAddress(address) {
+  return new Promise((resolve) => {
+    if (geocodeCache[address]) { resolve(geocodeCache[address]); return; }
+    if (!amapGeocoder) { 
+      console.error('Geocoder未初始化，尝试重新初始化');
+      setStatus('Geocoder未初始化，正在重试...', 'loading');
+      initGeocoder();
+      setTimeout(() => {
+        if (amapGeocoder) geocodeAddress(address).then(resolve).catch(() => resolve(null));
+        else resolve(null);
+      }, 1500);
+      return; 
+    }
+
+    // 添加超时处理（8秒）
+    const timeoutId = setTimeout(() => {
+      console.warn('地理编码超时:', address);
+      resolve(null);
+    }, 8000);
+
+    try {
+      amapGeocoder.getLocation(address, (status, result) => {
+        clearTimeout(timeoutId);
+        console.log('地理编码结果:', address, status, result);
+        if (status === 'complete' && result.geocodes && result.geocodes.length > 0) {
+          const loc = result.geocodes[0].location;
+          const coord = { lat: loc.lat, lng: loc.lng };
+          geocodeCache[address] = coord;
+          resolve(coord);
+        } else {
+          console.warn('地址解析失败：', address, '状态:', status, '结果:', result);
+          resolve(null);
+        }
+      });
+    } catch(e) {
+      clearTimeout(timeoutId);
+      console.error('地理编码异常:', e);
+      resolve(null);
+    }
+  });
+}
+
+// ===================== 地图初始化 =====================
+const map = L.map('map', { zoomControl: true }).setView([31.23, 121.47], 12);
+
+// 高德地图瓦片（GCJ-02坐标系，与高德JS API一致，无需转换）
+L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+  subdomains: '1234',
+  attribution: '&copy; <a href="https://www.amap.com">高德地图</a>',
+  maxZoom: 20
+}).addTo(map);
+
+const legend = L.control({ position: 'bottomleft' });
+legend.onAdd = function() {
+  const div = L.DomUtil.create('div', '');
+  div.innerHTML = `<div class="map-legend">
+    <b>图例</b>
+    <div class="legend-row"><span style="color:#e53935;font-size:17px;">&#9733;</span> 本案</div>
+    <div class="legend-row"><span style="color:#f9a825;font-size:13px;">&#9733;</span> 可比案例</div>
+    <div class="legend-row"><span style="color:#1565c0;">&#8594;</span> 距离射线</div>
+  </div>`;
+  return div;
+};
+legend.addTo(map);
+
+// ===================== 状态变量 =====================
+let markers = [], polylines = [], labelMarkers = [];
+
+// ===================== 五角星图标 =====================
+function starPoints(cx, cy, outerR, innerR, n) {
+  const pts = [];
+  for (let i = 0; i < n * 2; i++) {
+    const angle = (Math.PI / n) * i - Math.PI / 2;
+    const r = i % 2 === 0 ? outerR : innerR;
+    pts.push(`${(cx + r * Math.cos(angle)).toFixed(2)},${(cy + r * Math.sin(angle)).toFixed(2)}`);
+  }
+  return pts.join(' ');
+}
+
+function starIcon(color, size, label) {
+  const s = size;
+  // 估算文字宽度（中文约8px/字，英数约6px/字，字号11px）
+  const charWidth = label.replace(/[^\x00-\xff]/g, 'xx').length * 6;
+  const minW = s + 8;
+  const w = Math.max(minW, charWidth + 10); // SVG总宽度，保证文字不溢出
+  const cx = w / 2; // 星星和文字都以中心对齐
+  const pts = starPoints(cx, s/2, s/2*0.88, s/2*0.36, 5);
+  const stroke = color === '#fdd835' ? '#c8960c' : '#8b0000';
+  const totalH = s + 20;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${totalH}" viewBox="0 0 ${w} ${totalH}">
+    <polygon points="${pts}" fill="${color}" stroke="${stroke}" stroke-width="1.5"/>
+    <text x="${cx}" y="${s+15}" text-anchor="middle" font-size="11" font-family="Microsoft YaHei,sans-serif" font-weight="500" fill="#222" stroke="#fff" stroke-width="2.5" paint-order="stroke">${label}</text>
+  </svg>`;
+  return L.divIcon({
+    html: svg, className: '',
+    iconSize: [w, totalH],
+    iconAnchor: [cx, s/2],   // 锚点在星星中心
+    popupAnchor: [0, -(s/2+4)]
+  });
+}
+
+// ===================== 距离计算（Haversine） =====================
+function haversineDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2-lat1), dLng = toRad(lng2-lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ===================== 箭头射线 =====================
+function drawArrowLine(from, to) {
+  const line = L.polyline([from, to], {
+    color: '#1565c0', weight: 2, opacity: 0.7, dashArray: '7,4'
+  }).addTo(map);
+  polylines.push(line);
+
+  const fp = map.latLngToContainerPoint(from);
+  const tp = map.latLngToContainerPoint(to);
+  const angle = Math.atan2(tp.y - fp.y, tp.x - fp.x) * 180 / Math.PI;
+
+  const arrow = L.marker(to, {
+    icon: L.divIcon({
+      html: `<div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:13px solid #1565c0;transform:rotate(${angle+90}deg);transform-origin:6px 13px;opacity:0.8;"></div>`,
+      className: '', iconSize: [12, 13], iconAnchor: [6, 6]
+    }),
+    interactive: false, zIndexOffset: -100
+  }).addTo(map);
+  polylines.push(arrow);
+}
+
+function addDistLabel(from, to, distM) {
+  const midLat = (from.lat + to.lat) / 2;
+  const midLng = (from.lng + to.lng) / 2;
+  const text = distM >= 1000 ? (distM/1000).toFixed(2)+' km' : Math.round(distM)+' m';
+  const lbl = L.marker([midLat, midLng], {
+    icon: L.divIcon({
+      html: `<div style="background:transparent;border:none;padding:1px 4px;font-size:11px;font-family:Microsoft YaHei,sans-serif;color:#1565c0;font-weight:700;white-space:nowrap;pointer-events:none;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 4px #fff,0 0 4px #fff;">${text}</div>`,
+      className: '', iconAnchor: [22, 10]
+    }), interactive: false
+  });
+  // 根据当前显示状态决定是否添加到地图
+  if (showDistLabels) lbl.addTo(map);
+  labelMarkers.push(lbl);
+}
+
+// ===================== 读取Excel =====================
+function handleFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  setStatus('正在读取文件...', 'loading');
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      const dataRows = rows.filter(r => r.some(c => String(c).trim() !== ''));
+      if (!dataRows.length) { setStatus('文件无有效数据', 'err'); return; }
+
+      const firstRow = dataRows[0];
+      const hasHeader = firstRow.some(c => /地址|位置|名称|项目|楼盘/.test(String(c)));
+      const startIdx = hasHeader ? 1 : 0;
+      const dataBody = dataRows.slice(startIdx);
+      if (!dataBody.length) { setStatus('表头下方无数据', 'err'); return; }
+
+      processRows(dataBody, hasHeader ? firstRow : null);
+    } catch (err) { setStatus('文件解析失败：' + err.message, 'err'); }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
+}
+
+// ===================== 处理数据行 =====================
+async function processRows(rows, headerRow) {
+  clearAll(false);
+  let addrColIdx = 0;
+  if (headerRow) {
+    for (let i = 0; i < headerRow.length; i++) {
+      if (/地址|位置|地点/.test(String(headerRow[i]))) { addrColIdx = i; break; }
+    }
+  }
+
+  const total = rows.length;
+  showProgress(true);
+  setStatus(`共 ${total} 条，正在地理编码...`, 'loading');
+
+  // 备用：尝试高德Web服务API（如果JS API失败）
+  async function geocodeWithFallback(address) {
+    const coord = await geocodeAddress(address);
+    if (coord) return coord;
+    
+    // 备用方案：直接调用高德Web服务API
+    console.log('JS API失败，尝试Web服务API:', address);
+    try {
+      const resp = await fetch(`https://restapi.amap.com/v3/geocode/geo?key=${AMAP_KEY}&address=${encodeURIComponent(address)}&city=&output=JSON`);
+      const data = await resp.json();
+      if (data.status === '1' && data.geocodes && data.geocodes.length > 0) {
+        const loc = data.geocodes[0].location.split(',');
+        const coord = { lat: parseFloat(loc[1]), lng: parseFloat(loc[0]) };
+        geocodeCache[address] = coord; // 缓存结果
+        return coord;
+      }
+    } catch(e) {
+      console.error('Web服务API也失败:', e);
+    }
+    return null;
+  }
+
+  const geocoded = [];
+  for (let i = 0; i < rows.length; i++) {
+    const addr = String(rows[i][addrColIdx] || '').trim();
+    if (!addr) { geocoded.push(null); updateProgress((i+1)/total); continue; }
+    setStatus(`编码中 (${i+1}/${total})：${addr.substring(0, 15)}${addr.length > 15 ? '...' : ''}`, 'loading');
+    
+    const coord = await geocodeWithFallback(addr);
+    geocoded.push({ address: addr, coord, row: rows[i] });
+    updateProgress((i+1)/total);
+    if (i < rows.length-1) await sleep(300);
+  }
+
+  showProgress(false);
+  renderMap(geocoded, addrColIdx, headerRow);
+}
+
+// ===================== 渲染地图 =====================
+function renderMap(geocoded, addrColIdx, headerRow) {
+  clearMarkers();
+  const valid = geocoded.filter(g => g && g.coord);
+  if (!valid.length) {
+    setStatus('所有地址解析失败，请检查Key类型（需选JS API类型）', 'err');
+    updatePanel(geocoded, null, []);
+    return;
+  }
+
+  const subject = valid[0];
+  const sLL = L.latLng(subject.coord.lat, subject.coord.lng);
+  const bounds = [sLL], distInfos = [];
+
+  for (let i = 1; i < valid.length; i++) {
+    const c = valid[i];
+    const cLL = L.latLng(c.coord.lat, c.coord.lng);
+    const dist = haversineDistance(subject.coord.lat, subject.coord.lng, c.coord.lat, c.coord.lng);
+    distInfos.push({ index: i, address: c.address, dist, latLng: cLL, row: c.row });
+    bounds.push(cLL);
+  }
+
+  // 先绘射线
+  for (const info of distInfos) {
+    drawArrowLine(sLL, info.latLng);
+    addDistLabel(sLL, info.latLng, info.dist);
+  }
+
+  // 绘案例（黄色）
+  for (const info of distInfos) {
+    const m = L.marker(info.latLng, { icon: starIcon('#fdd835', 22, `案例${info.index}`) })
+      .addTo(map)
+      .bindPopup(buildPopup(`案例${info.index}`, info.address, info.dist, info.row, addrColIdx, headerRow));
+    markers.push(m);
+  }
+
+  // 绘本案（红色，置顶）
+  const sm = L.marker(sLL, { icon: starIcon('#e53935', 30, '本案'), zIndexOffset: 1000 })
+    .addTo(map)
+    .bindPopup(buildPopup('本案', subject.address, null, subject.row, addrColIdx, headerRow));
+  markers.push(sm);
+
+  bounds.length > 1 ? map.fitBounds(L.latLngBounds(bounds).pad(0.2)) : map.setView(sLL, 15);
+
+  const fail = geocoded.filter(g => !g || !g.coord).length;
+  setStatus(`已标注 ${valid.length} 个位置${fail ? '（'+fail+' 条解析失败）' : ''}`, 'ok');
+  updatePanel(geocoded, subject, distInfos);
+}
+
+// ===================== Popup =====================
+function buildPopup(label, address, dist, row, addrColIdx, headerRow) {
+  let html = `<div class="popup-title">${label}</div>`;
+  html += `<div class="popup-row"><b>地址：</b>${address}</div>`;
+  if (row && row.length > 1) {
+    for (let i = 0; i < row.length; i++) {
+      if (i === addrColIdx) continue;
+      const val = String(row[i]||'').trim();
+      if (!val) continue;
+      const name = (headerRow && headerRow[i]) ? headerRow[i] : `字段${i+1}`;
+      html += `<div class="popup-row"><b>${name}：</b>${val}</div>`;
+    }
+  }
+  if (dist != null) {
+    const dt = dist >= 1000 ? (dist/1000).toFixed(2)+' km' : Math.round(dist)+' m';
+    html += `<div class="popup-dist">&#x1F4CF; 距本案：${dt}</div>`;
+  }
+  return `<div style="min-width:175px;max-width:255px;">${html}</div>`;
+}
+
+// ===================== 面板 =====================
+function updatePanel(geocoded, subject, distInfos) {
+  const body = document.getElementById('panel-body');
+  if (!geocoded || !geocoded.length) {
+    body.innerHTML = '<div id="hint">上传 xlsx 后<br>地址将自动解析并显示</div>';
+    return;
+  }
+  let html = '';
+  geocoded.forEach((g, i) => {
+    if (!g) return;
+    const lat = g.coord ? g.coord.lat : 0, lng = g.coord ? g.coord.lng : 0;
+    if (i === 0) {
+      html += `<div class="prop-item is-subject" onclick="flyTo(${lat},${lng})">
+        <div class="prop-label"><span class="tag-subject">本案</span></div>
+        <div class="prop-address">${g.address}</div>
+        <div class="prop-dist">${g.coord ? '&#x1F4CD; 已定位' : '&#x26A0;&#xFE0F; 解析失败'}</div>
+      </div>`;
+    } else {
+      const info = distInfos.find(d => d.index === i);
+      const dt = info ? (info.dist>=1000 ? (info.dist/1000).toFixed(2)+' km' : Math.round(info.dist)+' m') : '';
+      html += `<div class="prop-item is-case" onclick="flyTo(${lat},${lng})">
+        <div class="prop-label"><span class="tag-case">案例${i}</span></div>
+        <div class="prop-address">${g.address}</div>
+        <div class="prop-dist">${g.coord ? (dt ? '&#x1F4CF; 距本案 '+dt : '&#x1F4CD; 已定位') : '&#x26A0;&#xFE0F; 解析失败'}</div>
+      </div>`;
+    }
+  });
+  body.innerHTML = html || '<div id="hint">暂无有效数据</div>';
+}
+
+// ===================== 工具函数 =====================
+function flyTo(lat, lng) { if (lat && lng) map.flyTo([lat, lng], 16, { duration: 0.7 }); }
+
+// ===================== 距离标注切换 =====================
+function toggleDistLabels() {
+  showDistLabels = !showDistLabels;
+  const btn = document.getElementById('dist-toggle-btn');
+  if (showDistLabels) {
+    // 显示所有距离标签
+    labelMarkers.forEach(l => {
+      if (!map.hasLayer(l)) l.addTo(map);
+    });
+    btn.textContent = '📏 显示距离';
+    btn.classList.remove('off');
+  } else {
+    // 隐藏所有距离标签
+    labelMarkers.forEach(l => {
+      if (map.hasLayer(l)) map.removeLayer(l);
+    });
+    btn.textContent = '📏 隐藏距离';
+    btn.classList.add('off');
+  }
+}
+
+function clearAll(resetPanel=true) {
+  clearMarkers();
+  // 重置距离显示状态为"显示"
+  showDistLabels = true;
+  const btn = document.getElementById('dist-toggle-btn');
+  if (btn) { btn.textContent = '📏 显示距离'; btn.classList.remove('off'); }
+  if (resetPanel) {
+    document.getElementById('panel-body').innerHTML = '<div id="hint">上传 xlsx 后<br>地址将自动解析并显示</div>';
+    setStatus(AMAP_KEY ? (amapLoaded ? '✅ Key已就绪，可上传xlsx文件' : '正在初始化SDK...') : '请先填写高德Key，再上传xlsx', AMAP_KEY ? 'ok' : '');
+  }
+}
+
+function clearMarkers() {
+  markers.forEach(m => map.removeLayer(m));
+  polylines.forEach(p => map.removeLayer(p));
+  labelMarkers.forEach(l => map.removeLayer(l));
+  markers = []; polylines = []; labelMarkers = [];
+}
+
+function setStatus(text, type) {
+  const el = document.getElementById('status-text');
+  el.textContent = text;
+  el.className = type==='ok' ? 'status-ok' : type==='err' ? 'status-err' : type==='loading' ? 'status-loading' : '';
+}
+
+function showProgress(show) {
+  document.getElementById('progress-bar').style.display = show ? 'block' : 'none';
+  if (!show) document.getElementById('progress-fill').style.width = '0%';
+}
+function updateProgress(r) { document.getElementById('progress-fill').style.width = Math.round(r*100)+'%'; }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
