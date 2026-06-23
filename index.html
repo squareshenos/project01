@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SquareOnline 测试页</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: rgba(0, 123, 255, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #ffffff;
+    }
+    .page {
+      text-align: center;
+      padding: 30px;
+      border-radius: 16px;
+      background: rgba(0, 0, 0, 0.35);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+      min-width: 320px;
+    }
+    .page h1 {
+      margin: 0 0 24px;
+      font-size: 2rem;
+    }
+    .controls {
+      display: grid;
+      gap: 16px;
+      align-items: center;
+    }
+    .controls label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.98rem;
+    }
+    .controls input[type="color"] {
+      width: 56px;
+      height: 40px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+    }
+    .note {
+      margin-top: 18px;
+      font-size: 0.9rem;
+      color: #dcdcdc;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>welcome squareonline！</h1>
+    <div class="controls">
+      <label>
+        选择背景色
+        <input id="bgColor" type="color" value="#007bff" />
+      </label>
+      <div class="note">当前背景色透明度固定为 50%</div>
+    </div>
+  </div>
+
+  <script>
+    const colorInput = document.getElementById('bgColor');
+    const setBackground = (hexColor) => {
+      document.body.style.backgroundColor = hexToRgba(hexColor, 0.5);
+    };
+
+    const hexToRgba = (hex, alpha) => {
+      const normalized = hex.replace('#', '');
+      const bigint = parseInt(normalized, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+
+    colorInput.addEventListener('input', (event) => {
+      setBackground(event.target.value);
+    });
+
+    setBackground(colorInput.value);
+  </script>
+</body>
+</html>
